@@ -1,5 +1,5 @@
 .vscode/
-catboost_info/
+
 mergeddata/
 processeddata/
 train_info/
