@@ -1,0 +1,13 @@
+.vscode/
+catboost_info/
+mergeddata/
+processeddata/
+train_info/
+
+train/*
+test/*
+
+1_df_merge_info.ipynb
+2_test.ipynb
+
+sample_submission.csv
