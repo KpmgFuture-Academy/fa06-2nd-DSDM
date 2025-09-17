@@ -1,0 +1,15 @@
+{
+  "data_paths": {
+    "base_test_csv": "fintech/fintech/base_test.csv",
+    "base_train_csv": "fintech/fintech/base_train.csv"
+  },
+  "output_paths": {
+    "predictions_csv": "predictions.csv",
+    "model_pkl": "trained_model.pkl"
+  },
+  "model_settings": {
+    "sample_size": 50000,
+    "chunk_size": 10000,
+    "max_features": 100
+  }
+}
