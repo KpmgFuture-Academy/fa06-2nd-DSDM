@@ -1,13 +1,21 @@
 .vscode/
 
+analyze/
 mergeddata/
 processeddata/
 train_info/
+catboost_info/
+seg_data_info/
+train/
+test/
 
-train/*
-test/*
+*catboost_info/learn_error.tsv
+*catboost_info/test_error.tsv
+*catboost_info/time_left.tsv
+
 
 1_df_merge_info.ipynb
 2_test.ipynb
 
 sample_submission.csv
+base_test_merged_seg.csv
