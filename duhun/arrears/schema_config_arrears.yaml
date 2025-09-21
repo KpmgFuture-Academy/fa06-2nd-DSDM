@@ -1,0 +1,37 @@
+# ============================================
+# schema_config.yaml  (연체예측 - CSV 기반 버전)
+# --------------------------------------------
+# 🔑 필요 파일:
+#   1) arrears_step5_final_features.csv  ← feature 목록 (열 이름: feature)
+#   2) base_clean_test.csv               ← 테스트 데이터
+#   3) final_catboost_arrears.cbm        ← 학습된 CatBoost 모델
+#
+# 실행기(predict_arrears_runtime_final.py)가
+# 이 YAML을 읽어서 피처리스트 CSV → 모델 추론에 사용합니다.
+# ============================================
+
+meta:
+  id_col: ID           # 결과에 그대로 남길 식별자 (테스트 CSV에 없으면 무시)
+  date_col: 기준년월   # 결과에 그대로 남길 날짜/월 기준 컬럼 (없으면 무시)
+  passthru_cols:       # 결과 CSV에 유지하고 싶은 컬럼들
+    - ID
+    - 기준년월
+    - Segment
+
+features:
+  source: arrears_step5_final_features.csv   # CSV에서 feature 목록을 읽음
+  column: feature                            # CSV 안에서 피처명이 들어있는 열 이름
+
+model:
+  path: final_catboost_arrears.cbm           # CatBoost 학습된 모델 파일
+
+output:
+  label_pred: pred_class                     # 예측된 class index (0/1/2)
+  label_text: risk_label                     # 예측된 class 텍스트 (Low/Medium/High)
+  proba_cols:                                # 확률 출력 컬럼명
+    - p0
+    - p1
+    - p2
+
+thresholds:
+  high: null   # (옵션) High 리스크 승격을 위한 확률 임계값. 필요 없으면 null
