@@ -1,0 +1,137 @@
+# ============================================
+# schema_config.yaml
+# --------------------------------------------
+# 목적:
+#  - 입력 데이터 품질을 자동 검증/보정 (운영/프로젝트 공통)
+#  - 특수 결측치 표기(-999999 등)를 자동으로 결측으로 인식 후 0으로 대체
+# 실행 순서: YAML 검증/보정 -> CBM 예측 -> 결고 저장
+# ============================================
+
+meta:
+  id_col: ID
+  date_col: 기준년월
+  passthru_cols: [ID, 기준년월]
+
+model:
+  path: final_catboost_model.cbm   # 실행기와 같은 경로에 둘 경우
+  task: multiclass   # 0=Low, 1=Medium, 2=High
+
+output:
+  label_pred: risk_label_pred
+  label_text: risk_label_text
+  proba_cols: [proba_Low, proba_Medium, proba_High]
+
+thresholds:
+  high: 0.70   # proba_High >= 0.70 이면 High로 승격
+
+# 전역 규칙 (모든 수치형 피처에 공통 적용)
+globals:
+  sentinel_nulls: [-999999, -99999, -1e9]   # 이런 값들은 결측으로 간주
+  clip_negative_to_zero: true               # 음수는 0으로 보정
+
+# 피처 스키마 (최종 15개)
+features:
+  - name: 연체일수_B1M
+    type: float
+    allow_null: true
+    fillna: 0
+    nonneg: true
+    range: [0, 31]
+
+  - name: 연체건수_R6M
+    type: float
+    allow_null: true
+    fillna: 0
+    nonneg: true
+    range: [0, 180]
+
+  - name: 이용카드수_신용체크
+    type: float
+    allow_null: false
+    fillna: 0
+    nonneg: true
+    range: [0, 50]
+
+  - name: 이용금액_일시불_R3M
+    type: float
+    allow_null: true
+    fillna: 0
+    nonneg: true
+    range: [0, null]
+
+  - name: 청구금액_R3M
+    type: float
+    allow_null: true
+    fillna: 0
+    nonneg: true
+    range: [0, null]
+
+  - name: 승인거절건수_한도초과_R3M
+    type: float
+    allow_null: true
+    fillna: 0
+    nonneg: true
+    range: [0, 99]
+
+  - name: 최대이용금액_체크_R12M
+    type: float
+    allow_null: true
+    fillna: 0
+    nonneg: true
+    range: [0, null]
+
+  - name: 증감율_이용건수_신용_분기
+    type: float
+    allow_null: true
+    fillna: 0
+    nonneg: false
+    range: [-1.0, 10.0]
+
+  - name: 이용건수_오프라인_R3M
+    type: float
+    allow_null: true
+    fillna: 0
+    nonneg: true
+    range: [0, null]
+
+  - name: 이용가능카드수_신용
+    type: float
+    allow_null: true
+    fillna: 0
+    nonneg: true
+    range: [0, 50]
+
+  - name: 소지카드수_유효_신용
+    type: float
+    allow_null: true
+    fillna: 0
+    nonneg: true
+    range: [0, 50]
+
+  - name: 이용건수_할부_R3M
+    type: float
+    allow_null: true
+    fillna: 0
+    nonneg: true
+    range: [0, null]
+
+  - name: 연체입금원금_B0M
+    type: float
+    allow_null: true
+    fillna: 0
+    nonneg: true
+    range: [0, null]
+
+  - name: 승인거절건수_BL_R3M
+    type: float
+    allow_null: true
+    fillna: 0
+    nonneg: true
+    range: [0, 99]
+
+  - name: 이용메뉴건수_IB_R6M
+    type: float
+    allow_null: true
+    fillna: 0
+    nonneg: true
+    range: [0, null]
