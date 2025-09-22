@@ -10,6 +10,78 @@ import plotly.graph_objects as go
 from datetime import datetime, date
 from utils import load_data, apply_filters, SEGMENT_ORDER, SEGMENT_COLORS, format_number, get_device_info, _get_device, gpu_accelerated_computation, TORCH_AVAILABLE
 
+
+import html
+import streamlit as st
+from streamlit.components.v1 import html as st_html
+
+# --- OPENAI ---
+from dotenv import load_dotenv
+from openai import OpenAI
+import os
+
+load_dotenv()
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+prompt_template = """
+    너는 데이터 분석가이자 비즈니스 컨설턴트다.  
+    아래 데이터를 토대로 신뢰할 수 있는 요약과 인사이트를 작성하라. 
+    답변은 간결하고 핵심적인 어투로 정리할 것.
+
+    출력은 두 개의 큰 카테고리로 나눈다.  
+    각 카테고리는 시각적으로 한눈에 들어오도록 구조화한다.
+
+    ### 1. 데이터 요약 (Data Summary)
+    - 표(table) 형식으로 핵심 지표를 정리한다.  
+    - 표는 항목(지표) / 값(숫자·분포) / 설명 세 열 구조로 작성한다.  
+    - 우측 항목(지표) 세부 내용들은 **굵게** 표시한다. 
+    - 표 아래에는 필요한 경우 간단한 불릿 포인트로 추가 설명을 붙인다.
+    - 강조할 수치(최대값, 최소값, 비율)는 **굵게** 표시한다.  
+
+    ### 2. 핵심 인사이트 및 실행 제안 (Key Insights & Action Plan)
+    - 소제목을 나누어 구조화한다. (예: 고객 특성 / 카테고리별 기회 / 액션 플랜 / 위험 요인)  
+    - 각 소제목 아래에는 불릿 포인트로 정리한다.  
+    - 반드시 수치나 비율을 근거로 설명하여 신뢰성을 높인다.  
+    - 액션 플랜은 2~4개의 구체적 실행 방안을 **번호 리스트(1. 2. 3.)**로 제시한다.  
+    - 잠재적 위험 요인도 간단히 정리한다.  
+
+    출력 형식은 Markdown으로 작성하며,  
+    제목(###), 소제목(**(1),(2)**)), 불릿(-), 번호리스트(1.) 등을 활용해 가독성을 높인다.  
+    """
+
+def openai_get_insight(prompt_template, *dfs, model="gpt-4o"):
+    """
+    dfs: DataFrame들(1~5개). 
+         이름을 주고 싶으면 ("name", df) 튜플로 넘겨도 됨.
+         예) openai_get_insight(pt, df1) 
+             openai_get_insight(pt, df1, df2, df3)
+             openai_get_insight(pt, ("kpi", df1), ("segment", df2))
+    """
+    # 단일 인자로 dict가 오면 처리
+    if len(dfs) == 1 and isinstance(dfs[0], dict):
+        pairs = list(dfs[0].items())
+    else:
+        pairs = []
+        for i, d in enumerate(dfs, 1):
+            if isinstance(d, tuple) and len(d) == 2 and isinstance(d[1], pd.DataFrame):
+                name, df = d
+            else:
+                name, df = f"df_{i}", d
+            pairs.append((str(name), df))
+
+    blocks = [
+        f"### DATASET: {name}\n```csv\n{df.to_csv(index=False)}\n```"
+        for name, df in pairs
+    ]
+    content = "\n\n".join(blocks)
+
+    messages = [
+        {"role": "system", "content": prompt_template},
+        {"role": "user", "content": content},
+    ]
+    resp = client.chat.completions.create(model=model, messages=messages)
+    return resp.choices[0].message.content
+
+
 # --- NAV 정의 ---
 NAV = {
     "세그먼트별 비교분석": {
@@ -158,12 +230,20 @@ def render_global_filters(df: pd.DataFrame) -> pd.DataFrame:
     return filtered_df
 
 
-def render_kpi_analysis(df: pd.DataFrame):
+def render_kpi_analysis(df: pd.DataFrame, collector: dict = None, return_df: bool = False):
     """주요 KPI 분석"""
     st.markdown("### 📈 주요 KPI 분석")
     
+    # 데이터프레임 수집 초기화
+    if collector is None:
+        collector = {}
+    
+    # 기본 데이터프레임 저장
+    collector["KPI/original_df"] = df.copy()
+    
     # KPI 계산
     kpi_data = calculate_kpi_metrics(df)
+    collector["KPI/kpi_base"] = kpi_data.copy()
     
     # 정렬 토글
     col1, col2 = st.columns([1, 4])
@@ -180,9 +260,11 @@ def render_kpi_analysis(df: pd.DataFrame):
     else:
         kpi_data_sorted = kpi_data
     
+    collector["KPI/kpi_sorted"] = kpi_data_sorted.copy()
+    
     # KPI 카드 행
     st.markdown("#### 🎯 세그먼트별 KPI 카드")
-    render_kpi_cards(kpi_data_sorted)
+    render_kpi_cards(kpi_data_sorted, collector=collector)
     
     # 차트 영역 (두 줄)
     st.markdown("#### 📊 KPI 시각화")
@@ -191,35 +273,31 @@ def render_kpi_analysis(df: pd.DataFrame):
     col1, col2 = st.columns(2)
     
     with col1:
-        render_kpi_bar_chart(kpi_data_sorted)
+        render_kpi_bar_chart(kpi_data_sorted, collector=collector)
     
     with col2:
-        render_kpi_radar_chart(kpi_data_sorted)
+        render_kpi_radar_chart(kpi_data_sorted, collector=collector)
     
     # 2행 - 좌: 박스플롯, 우: 스택바
     col1, col2 = st.columns(2)
     
     with col1:
-        render_kpi_boxplot(df)
+        render_kpi_boxplot(df, collector=collector)
     
     with col2:
-        render_payment_method_chart(df)
+        render_payment_method_chart(df, collector=collector)
     
-    # CSV 다운로드
+    # AI 요약    
     st.markdown("---")
-    csv_data = kpi_data_sorted.to_csv(index=False)
-    st.download_button(
-        label="📥 KPI 데이터 다운로드",
-        data=csv_data,
-        file_name="kpi_analysis.csv",
-        mime="text/csv"
-    )
+    with st.expander("📈 분석 인사이트 보기", expanded=False):
+        st.markdown(openai_get_insight(prompt_template, kpi_data))
+
+    # CSV 다운로드
+    csv_dl(kpi_data, "KPI", index=False)
     
     # 데이터프레임 반환
-    return {
-        'kpi_data': kpi_data_sorted,
-        'original_df': df
-    }
+    if return_df:
+        return collector
 
 def calculate_kpi_metrics(df: pd.DataFrame) -> pd.DataFrame:
     """KPI 메트릭 계산"""
@@ -263,7 +341,7 @@ def calculate_kpi_metrics(df: pd.DataFrame) -> pd.DataFrame:
     
     return kpi_data.reset_index()
 
-def render_kpi_cards(kpi_data: pd.DataFrame):
+def render_kpi_cards(kpi_data: pd.DataFrame, collector: dict = None, return_df: bool = False):
     """KPI 카드 렌더링"""
     cards_per_row = 5  # A, B, C, D, E 모두 표시
     
@@ -330,8 +408,15 @@ def render_kpi_cards(kpi_data: pd.DataFrame):
                         </div>
                     </div>
                     """, unsafe_allow_html=True)
+    
+    # 데이터프레임 수집
+    if collector is not None:
+        collector["KPI/cards/kpi_data"] = kpi_data.copy()
+    
+    if return_df:
+        return {"kpi_data": kpi_data.copy()}
 
-def render_kpi_bar_chart(kpi_data: pd.DataFrame):
+def render_kpi_bar_chart(kpi_data: pd.DataFrame, collector: dict = None, return_df: bool = False):
     """KPI 막대 차트"""
     # 비율 계산 (전체 대비)
     total_arpu = kpi_data['ARPU'].sum()
@@ -376,8 +461,15 @@ def render_kpi_bar_chart(kpi_data: pd.DataFrame):
     )
     
     st.plotly_chart(fig, use_container_width=True)
+    
+    # 데이터프레임 수집
+    if collector is not None:
+        collector["KPI/bar_chart/chart_data"] = kpi_data.copy()
+    
+    if return_df:
+        return {"chart_data": kpi_data.copy()}
 
-def render_kpi_radar_chart(kpi_data: pd.DataFrame):
+def render_kpi_radar_chart(kpi_data: pd.DataFrame, collector: dict = None, return_df: bool = False):
     """KPI 레이더 차트"""
     # 정규화를 위한 최대값 계산
     max_values = {
@@ -426,8 +518,15 @@ def render_kpi_radar_chart(kpi_data: pd.DataFrame):
     )
     
     st.plotly_chart(fig, use_container_width=True)
+    
+    # 데이터프레임 수집
+    if collector is not None:
+        collector["KPI/radar_chart/chart_data"] = kpi_data.copy()
+    
+    if return_df:
+        return {"chart_data": kpi_data.copy()}
 
-def render_kpi_boxplot(df: pd.DataFrame):
+def render_kpi_boxplot(df: pd.DataFrame, collector: dict = None, return_df: bool = False):
     """KPI 박스플롯"""
     fig = px.box(
         df, 
@@ -447,8 +546,15 @@ def render_kpi_boxplot(df: pd.DataFrame):
     )
     
     st.plotly_chart(fig, use_container_width=True)
+    
+    # 데이터프레임 수집
+    if collector is not None:
+        collector["KPI/boxplot/chart_data"] = df.copy()
+    
+    if return_df:
+        return {"chart_data": df.copy()}
 
-def render_payment_method_chart(df: pd.DataFrame):
+def render_payment_method_chart(df: pd.DataFrame, collector: dict = None, return_df: bool = False):
     """결제수단 비중 차트"""
     # 결정적 결제수단 데이터 생성
     payment_data = []
@@ -519,10 +625,24 @@ def render_payment_method_chart(df: pd.DataFrame):
     )
     
     st.plotly_chart(fig, use_container_width=True)
+    
+    # 데이터프레임 수집
+    if collector is not None:
+        collector["KPI/payment_method/chart_data"] = payment_df.copy()
+    
+    if return_df:
+        return {"chart_data": payment_df.copy()}
 
-def render_segment_details(df: pd.DataFrame):
+def render_segment_details(df: pd.DataFrame, collector: dict = None, return_df: bool = False):
     """세그먼트별 세부특성"""
     st.markdown("### 🔍 세그먼트별 세부특성")
+    
+    # 데이터프레임 수집 초기화
+    if collector is None:
+        collector = {}
+    
+    # 기본 데이터프레임 저장
+    collector["SegmentDetails/original_df"] = df.copy()
     
     # 1. 분포/구성 분석
     st.markdown("#### 📊 분포/구성 분석")
@@ -531,39 +651,33 @@ def render_segment_details(df: pd.DataFrame):
     
     with col1:
         # 연령×세그먼트 Stacked Bar (%)
-        age_segment_data = render_age_segment_distribution(df)
+        age_segment_data = render_age_segment_distribution(df, collector=collector)
     
     with col2:
         # 지역×세그먼트 Heatmap
-        region_segment_data = render_region_segment_heatmap(df)
+        region_segment_data = render_region_segment_heatmap(df, collector=collector)
     
     # 채널 선호도 TopN
     st.markdown("##### 📱 세그먼트별 채널 선호도 (Top 5)")
-    channel_preference_data = render_channel_preference(df)
+    channel_preference_data = render_channel_preference(df, collector=collector)
     
     # 2. 업종/MCC 요약
     st.markdown("#### 🏢 세그먼트별 업종 분석")
-    industry_data = render_industry_analysis(df)
+    industry_data = render_industry_analysis(df, collector=collector)
     
     # 3. 코호트/잔존 분석
     st.markdown("#### 📈 코호트/잔존 분석")
-    cohort_data = render_cohort_analysis(df)
+    cohort_data = render_cohort_analysis(df, collector=collector)
     
     # 4. 다운로드 버튼
     st.markdown("---")
-    render_download_section(df)
+    render_download_section(df, collector=collector)
     
     # 데이터프레임 반환
-    return {
-        'age_segment_data': age_segment_data,
-        'region_segment_data': region_segment_data,
-        'channel_preference_data': channel_preference_data,
-        'industry_data': industry_data,
-        'cohort_data': cohort_data,
-        'original_df': df
-    }
+    if return_df:
+        return collector
 
-def render_age_segment_distribution(df: pd.DataFrame):
+def render_age_segment_distribution(df: pd.DataFrame, collector: dict = None, return_df: bool = False):
     """연령×세그먼트 분포 Stacked Bar"""
     # 연령×세그먼트 교차표 생성
     # 연령 컬럼 찾기
@@ -615,10 +729,16 @@ def render_age_segment_distribution(df: pd.DataFrame):
     
     st.plotly_chart(fig, use_container_width=True)
     
-    # 데이터프레임 반환
+    # 데이터프레임 수집
+    if collector is not None:
+        collector["SegmentDetails/age_distribution/cross_table"] = cross_table.copy()
+    
+    if return_df:
+        return {"cross_table": cross_table.copy()}
+    
     return cross_table
 
-def render_region_segment_heatmap(df: pd.DataFrame):
+def render_region_segment_heatmap(df: pd.DataFrame, collector: dict = None, return_df: bool = False):
     """지역×세그먼트 히트맵"""
     # 지역×세그먼트 교차표 생성 (비율)
     cross_table = pd.crosstab(df['Region'], df['Segment'], normalize='index') * 100
@@ -666,10 +786,16 @@ def render_region_segment_heatmap(df: pd.DataFrame):
     
     st.plotly_chart(fig, use_container_width=True)
     
-    # 데이터프레임 반환
+    # 데이터프레임 수집
+    if collector is not None:
+        collector["SegmentDetails/region_heatmap/cross_table"] = cross_table.copy()
+    
+    if return_df:
+        return {"cross_table": cross_table.copy()}
+    
     return cross_table
 
-def render_channel_preference(df: pd.DataFrame):
+def render_channel_preference(df: pd.DataFrame, collector: dict = None, return_df: bool = False):
     """채널 선호도 분석 (실제 데이터 기반)"""
     st.markdown("#### 📱 세그먼트별 채널 선호도 분석")
     
@@ -794,10 +920,16 @@ def render_channel_preference(df: pd.DataFrame):
     
     st.plotly_chart(fig, use_container_width=True)
     
-    # 데이터프레임 반환
+    # 데이터프레임 수집
+    if collector is not None:
+        collector["SegmentDetails/channel_preference/channel_df"] = channel_df.copy()
+    
+    if return_df:
+        return {"channel_df": channel_df.copy()}
+    
     return channel_df
 
-def render_industry_analysis(df: pd.DataFrame):
+def render_industry_analysis(df: pd.DataFrame, collector: dict = None, return_df: bool = False):
     """업종 분석"""
     # 가상의 업종 데이터 생성
     industries = [
@@ -1642,7 +1774,7 @@ def render_trend_download_section(trend_data: pd.DataFrame):
         else:
             st.info("이상치 탐지를 먼저 실행해주세요.")
 
-def render_trend_analysis(df: pd.DataFrame):
+def render_trend_analysis(df: pd.DataFrame, collector: dict = None, return_df: bool = False):
     """트렌드 분석(시계열)"""
     st.markdown("### 📈 트렌드 분석(시계열)")
     
@@ -1650,32 +1782,38 @@ def render_trend_analysis(df: pd.DataFrame):
         st.warning("데이터가 없습니다.")
         return
     
+    # 데이터프레임 수집 초기화
+    if collector is None:
+        collector = {}
+    
+    # 기본 데이터프레임 저장
+    collector["Trend/original_df"] = df.copy()
+    
     # 데이터 전처리
     trend_data = prepare_trend_data(df)
+    collector["Trend/trend_base"] = trend_data.copy()
     
     # 컨트롤 패널
-    render_trend_controls(trend_data)
+    render_trend_controls(trend_data, collector=collector)
     
     # 시계열 라인 차트
-    render_time_series_chart(trend_data)
+    render_time_series_chart(trend_data, collector=collector)
     
     # YoY/HoH 변화율 분석
-    render_yoy_analysis(trend_data)
+    render_yoy_analysis(trend_data, collector=collector)
     
     # 이상치/급변 탐지
-    render_anomaly_detection(trend_data)
+    render_anomaly_detection(trend_data, collector=collector)
     
     # 분해 분석 (선택적)
-    render_seasonal_decomposition(trend_data)
+    render_seasonal_decomposition(trend_data, collector=collector)
     
     # 다운로드 섹션
-    render_trend_download_section(trend_data)
+    render_trend_download_section(trend_data, collector=collector)
     
     # 데이터프레임 반환
-    return {
-        'trend_data': trend_data,
-        'original_df': df
-    }
+    if return_df:
+        return collector
 
 
 
@@ -1792,51 +1930,51 @@ def main():
         # 세그먼트별 비교분석
         if main_tab == "세그먼트별 비교분석":
             if sub_tab == "주요 KPI 분석":
-                result = render_kpi_analysis(filtered_df)
+                result = render_kpi_analysis(filtered_df, return_df=True)
                 if result:
                     st.session_state['current_analysis_data'] = result
             elif sub_tab == "세그먼트별 세부특성":
-                result = render_segment_details(filtered_df)
+                result = render_segment_details(filtered_df, return_df=True)
                 if result:
                     st.session_state['current_analysis_data'] = result
             elif sub_tab == "트렌드 분석(시계열)":
-                result = render_trend_analysis(filtered_df)
+                result = render_trend_analysis(filtered_df, return_df=True)
                 if result:
                     st.session_state['current_analysis_data'] = result
         # 리스크 분석
         elif main_tab == "리스크 분석":
             if sub_tab == "연체/부실":
-                result = render_risk_delinquency(filtered_df)
+                result = render_risk_delinquency(filtered_df, return_df=True)
                 if result:
                     st.session_state['current_analysis_data'] = result
             elif sub_tab == "한도/이용률":
-                result = render_risk_limit_util(filtered_df)
+                result = render_risk_limit_util(filtered_df, return_df=True)
                 if result:
                     st.session_state['current_analysis_data'] = result
             elif sub_tab == "승인/거절":
-                result = render_risk_auth_decline(filtered_df)
+                result = render_risk_auth_decline(filtered_df, return_df=True)
                 if result:
                     st.session_state['current_analysis_data'] = result
             elif sub_tab == "조기경보(EWS)":
-                result = render_risk_ews(filtered_df)
+                result = render_risk_ews(filtered_df, return_df=True)
                 if result:
                     st.session_state['current_analysis_data'] = result
         # 행동마케팅 분석
         elif main_tab == "행동마케팅 분석":
             if sub_tab == "캠페인 반응":
-                result = render_behavior_campaign(filtered_df)
+                result = render_behavior_campaign(filtered_df, return_df=True)
                 if result:
                     st.session_state['current_analysis_data'] = result
             elif sub_tab == "개인화 오퍼":
-                result = render_behavior_offer(filtered_df)
+                result = render_behavior_offer(filtered_df, return_df=True)
                 if result:
                     st.session_state['current_analysis_data'] = result
             elif sub_tab == "이탈/리텐션":
-                result = render_behavior_churn(filtered_df)
+                result = render_behavior_churn(filtered_df, return_df=True)
                 if result:
                     st.session_state['current_analysis_data'] = result
             elif sub_tab == "채널 효율":
-                result = render_behavior_channel(filtered_df)
+                result = render_behavior_channel(filtered_df, return_df=True)
                 if result:
                     st.session_state['current_analysis_data'] = result
     
