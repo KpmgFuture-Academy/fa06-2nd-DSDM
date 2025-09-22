@@ -134,7 +134,7 @@ COLUMN_MAPPING = {
     # 리스크
     '승인거절건수_B0M': '승인거절건수_B0M',
     '연체잔액_B0M': '연체잔액_B0M',
-    '카드이용한도금액': '카드이용한도액',
+    '카드이용한도금액': '카드이용한도금액',
     
     # 참여/혜택
     '포인트_적립_B0M': '포인트_적립_B0M',
@@ -157,39 +157,39 @@ def load_data() -> pd.DataFrame:
         # 컬럼 매핑 적용
         df = map_columns(df)
         
-        # 필수 컬럼 확인 및 생성
-        if 'Date' not in df.columns:
-            if '기준년월' in df.columns:
-                df['Date'] = df['기준년월']
-            else:
-                # 가상 날짜 생성
-                df['Date'] = pd.date_range('2023-01-01', periods=len(df), freq='M')
+        # 날짜 컬럼 처리 (2018년 7월~12월 데이터)
+        if '기준년월' in df.columns:
+            # 기준년월에서 년과 월 추출
+            df['Year'] = pd.to_numeric(df['기준년월'].astype(str).str[:4], errors='coerce')
+            df['Month'] = pd.to_numeric(df['기준년월'].astype(str).str[4:6], errors='coerce')
+            # Date 컬럼은 년월 문자열로 유지 (201807~201812 형태)
+            df['Date'] = df['기준년월'].astype(str)
+            
+            # 실제 데이터 범위 확인
+            unique_months = sorted(df['기준년월'].unique())
+            st.info(f"ℹ️ 데이터 기간: {unique_months[0]} ~ {unique_months[-1]} ({len(unique_months)}개월)")
+        elif 'Date' not in df.columns:
+            st.warning("⚠️ 날짜 컬럼이 없습니다. 기준년월 컬럼을 확인해주세요.")
+            df['Year'] = 2018  # 기본값
+            df['Month'] = 7    # 기본값
+            df['Date'] = '201807'
         
-        # 날짜 변환
-        try:
-            df['Date'] = pd.to_datetime(df['Date'], format='%Y%m')
-        except:
-            try:
-                df['Date'] = pd.to_datetime(df['Date'])
-            except:
-                # 가상 날짜 생성
-                df['Date'] = pd.date_range('2023-01-01', periods=len(df), freq='M')
+        # 연령 컬럼 처리 (기존 데이터셋 그대로 사용)
+        age_column = None
         
-        # 연령 컬럼 확인 및 생성
-        if 'Age' not in df.columns:
-            if '연령' in df.columns:
-                df['Age'] = df['연령']
-            else:
-                # 가상 연령 생성
-                df['Age'] = np.random.randint(20, 70, len(df))
+        # 연령 관련 컬럼 찾기
+        age_candidates = [col for col in df.columns if '연령' in col or 'age' in col.lower() or 'Age' in col]
         
-        # 연령대 생성
-        try:
-            df['AgeGroup'] = pd.cut(df['Age'], 
-                                   bins=[0, 20, 30, 40, 50, 60, 100], 
-                                   labels=['20대미만', '20대', '30대', '40대', '50대', '60대이상'])
-        except:
-            # 기본 연령대 설정
+        if age_candidates:
+            age_column = age_candidates[0]
+            st.info(f"ℹ️ 연령 컬럼 발견: '{age_column}'")
+            # 기존 연령 컬럼을 AgeGroup으로 직접 사용
+            df['AgeGroup'] = df[age_column].astype(str)
+            # NaN이나 빈 값 처리
+            df['AgeGroup'] = df['AgeGroup'].replace(['nan', 'NaN', 'None', ''], '30대')
+        else:
+            st.warning("⚠️ 연령 관련 컬럼을 찾을 수 없습니다.")
+            st.info(f"ℹ️ 사용 가능한 컬럼들: {list(df.columns)[:20]}...")
             df['AgeGroup'] = '30대'
         
         # 지역 컬럼 확인 및 생성
@@ -197,15 +197,13 @@ def load_data() -> pd.DataFrame:
             if '거주시도명' in df.columns:
                 df['Region'] = df['거주시도명']
             else:
-                # 가상 지역 생성
-                regions = ['서울', '경기', '부산', '대구', '인천', '광주', '대전', '울산']
-                df['Region'] = np.random.choice(regions, len(df))
+                st.warning("⚠️ 지역 컬럼이 없습니다. 거주시도명 컬럼을 확인해주세요.")
+                df['Region'] = pd.NA
         
         # 세그먼트 컬럼 확인 및 생성
         if 'Segment' not in df.columns:
-            # 가상 세그먼트 생성 (EDA 결과 반영)
-            segment_probs = [0.0004, 0.00001, 0.053, 0.135, 0.811]  # A, B, C, D, E 비율
-            df['Segment'] = np.random.choice(['A', 'B', 'C', 'D', 'E'], len(df), p=segment_probs)
+            st.warning("⚠️ Segment 컬럼이 없습니다. 세그먼트 정보를 확인해주세요.")
+            df['Segment'] = pd.NA
         
         # 세그먼트 카테고리화
         try:
@@ -216,7 +214,8 @@ def load_data() -> pd.DataFrame:
         
         # ID 컬럼 확인 및 생성
         if 'ID' not in df.columns:
-            df['ID'] = range(len(df))
+            st.warning("⚠️ ID 컬럼이 없습니다. 고객 ID 정보를 확인해주세요.")
+            df['ID'] = pd.NA
         
         return df
         
@@ -267,14 +266,34 @@ def map_columns(df: pd.DataFrame) -> pd.DataFrame:
     elif '연체여부' in df.columns:
         df['연체여부'] = (df['연체여부'] > 0).astype(int)
     
-    # 누락된 컬럼에 기본값 설정
-    required_columns = ['총이용금액_B0M', '총이용건수_B0M', '연체여부', '카드이용한도액']
-    for col in required_columns:
-        if col not in df.columns:
-            if col == '연체여부':
-                df[col] = 0
+    # 카드이용한도금액 컬럼 처리 (누락 시 대체 컬럼 찾기)
+    if '카드이용한도금액' not in df.columns:
+        # 유사한 컬럼명 찾기
+        limit_candidates = [col for col in df.columns if any(keyword in col.lower() for keyword in ['한도', 'limit', 'credit_limit', 'card_limit'])]
+        if limit_candidates:
+            df['카드이용한도금액'] = pd.to_numeric(df[limit_candidates[0]], errors='coerce').fillna(100000)
+            st.info(f"ℹ️ 카드이용한도금액을 '{limit_candidates[0]}' 컬럼에서 매핑했습니다.")
+        else:
+            # 기본값으로 설정 (실제 데이터 기반 추정)
+            if '총이용금액_B0M' in df.columns:
+                # 총이용금액의 3배를 한도로 추정
+                df['카드이용한도금액'] = (pd.to_numeric(df['총이용금액_B0M'], errors='coerce') * 3).fillna(100000)
+                st.info("ℹ️ 카드이용한도금액을 총이용금액 기반으로 추정 생성했습니다.")
             else:
-                df[col] = 100000  # 기본값
+                df['카드이용한도금액'] = 100000  # 기본값
+                st.warning("⚠️ 카드이용한도금액 컬럼이 없어 기본값(100,000)으로 설정했습니다.")
+    
+    # 기타 누락된 컬럼 처리
+    other_required_columns = ['총이용금액_B0M', '총이용건수_B0M', '연체여부']
+    missing_columns = [col for col in other_required_columns if col not in df.columns]
+    
+    if missing_columns:
+        st.warning(f"⚠️ 다음 컬럼들이 누락되었습니다: {missing_columns}")
+        for col in missing_columns:
+            if col == '연체여부':
+                df[col] = 0  # 기본값: 연체 없음
+            else:
+                df[col] = 0  # 기본값
     
     return df
 
@@ -288,18 +307,33 @@ def apply_filters(df: pd.DataFrame,
     """
     filtered_df = df.copy()
     
-    # 날짜 필터
+    # 날짜 필터 (2018년 7월~12월 범위)
     if date_range:
-        # date 타입을 datetime으로 변환
-        start_date = pd.to_datetime(date_range[0])
-        end_date = pd.to_datetime(date_range[1])
+        # date_range를 년월로 변환 (2018년 7월~12월 범위로 제한)
+        start_year = max(2018, date_range[0].year)
+        start_month = max(7, date_range[0].month) if start_year == 2018 else date_range[0].month
+        end_year = min(2018, date_range[1].year)
+        end_month = min(12, date_range[1].month) if end_year == 2018 else date_range[1].month
         
-        filtered_df = filtered_df[
-            (filtered_df['Date'] >= start_date) & 
-            (filtered_df['Date'] <= end_date)
-        ]
+        # Year와 Month 컬럼이 있는 경우 사용
+        if 'Year' in filtered_df.columns and 'Month' in filtered_df.columns:
+            filtered_df = filtered_df[
+                ((filtered_df['Year'] > start_year) | 
+                 ((filtered_df['Year'] == start_year) & (filtered_df['Month'] >= start_month))) &
+                ((filtered_df['Year'] < end_year) | 
+                 ((filtered_df['Year'] == end_year) & (filtered_df['Month'] <= end_month)))
+            ]
+        else:
+            # Date 컬럼이 문자열인 경우 (201807~201812 형태)
+            start_ym = start_year * 100 + start_month
+            end_ym = end_year * 100 + end_month
+            
+            date_numeric = pd.to_numeric(filtered_df['Date'].astype(str).str.replace('[^0-9]', ''), errors='coerce')
+            filtered_df = filtered_df[
+                (date_numeric >= start_ym) & (date_numeric <= end_ym)
+            ]
     
-    # 연령대 필터
+    # 연령 필터
     if age_groups:
         filtered_df = filtered_df[filtered_df['AgeGroup'].isin(age_groups)]
     
@@ -320,22 +354,43 @@ def compute_kpis(df: pd.DataFrame) -> pd.DataFrame:
     if df.empty:
         return pd.DataFrame()
     
-    # 세그먼트별 집계
-    kpi_df = df.groupby('Segment', observed=False).agg({
-        'ID': 'nunique',
-        '총이용금액_B0M': 'sum',
-        '총이용건수_B0M': 'sum',
-        '카드이용한도액': 'sum',
-        '연체여부': 'mean',
-        '포인트_적립_B0M': 'sum',
-        '포인트_소멸_B0M': 'sum'
-    }).rename(columns={'ID': '고객수'})
+    # 세그먼트별 집계 (실제 데이터셋 컬럼 기반)
+    agg_dict = {'ID': 'nunique'}
     
-    # 파생 지표 계산
-    kpi_df['ARPU_월'] = kpi_df['총이용금액_B0M'] / kpi_df['고객수']
-    kpi_df['객단가'] = kpi_df['총이용금액_B0M'] / kpi_df['총이용건수_B0M']
-    kpi_df['이용률_한도대비'] = kpi_df['총이용금액_B0M'] / kpi_df['카드이용한도액']
-    kpi_df['연체율'] = kpi_df['연체여부'] * 100
+    # 실제 존재하는 컬럼만 집계에 포함
+    if '총이용금액_B0M' in df.columns:
+        agg_dict['총이용금액_B0M'] = 'sum'
+    if '총이용건수_B0M' in df.columns:
+        agg_dict['총이용건수_B0M'] = 'sum'
+    if '카드이용한도금액' in df.columns:
+        agg_dict['카드이용한도금액'] = 'sum'
+    if '연체여부' in df.columns:
+        agg_dict['연체여부'] = 'mean'
+    if '포인트_적립_B0M' in df.columns:
+        agg_dict['포인트_적립_B0M'] = 'sum'
+    if '포인트_소멸_B0M' in df.columns:
+        agg_dict['포인트_소멸_B0M'] = 'sum'
+    
+    kpi_df = df.groupby('Segment', observed=False).agg(agg_dict).rename(columns={'ID': '고객수'})
+    
+    # 파생 지표 계산 (타입 안전하게)
+    if '총이용금액_B0M' in kpi_df.columns:
+        # 0으로 나누기 방지
+        safe_customers = kpi_df['고객수'].replace(0, 1)
+        kpi_df['ARPU_월'] = kpi_df['총이용금액_B0M'] / safe_customers
+    
+    if '총이용금액_B0M' in kpi_df.columns and '총이용건수_B0M' in kpi_df.columns:
+        # 0으로 나누기 방지
+        safe_count = kpi_df['총이용건수_B0M'].replace(0, 1)
+        kpi_df['객단가'] = kpi_df['총이용금액_B0M'] / safe_count
+    
+    if '총이용금액_B0M' in kpi_df.columns and '카드이용한도금액' in kpi_df.columns:
+        # 0으로 나누기 방지
+        safe_limit = kpi_df['카드이용한도금액'].replace(0, 1)
+        kpi_df['이용률_한도대비'] = kpi_df['총이용금액_B0M'] / safe_limit
+    
+    if '연체여부' in kpi_df.columns:
+        kpi_df['연체율'] = kpi_df['연체여부'] * 100
     
     # 무한대/NaN 처리
     kpi_df = kpi_df.replace([np.inf, -np.inf], np.nan)
@@ -461,9 +516,9 @@ def create_global_filters(df: pd.DataFrame) -> Dict:
     with col2:
         end_date = st.date_input("종료일", value=date_max.date())
     
-    # 연령대
+    # 연령
     age_groups = st.sidebar.multiselect(
-        "연령대",
+        "연령",
         options=sorted(df['AgeGroup'].dropna().unique().tolist()),
         default=sorted(df['AgeGroup'].dropna().unique().tolist())
     )
@@ -493,11 +548,23 @@ def create_global_filters(df: pd.DataFrame) -> Dict:
         'segments': segments
     }
 
+def safe_csv_encode(df: pd.DataFrame, **kwargs) -> str:
+    """
+    한글 깨짐 방지를 위한 안전한 CSV 인코딩 함수
+    """
+    try:
+        # Windows 환경에서 한글 깨짐 방지를 위해 cp949 인코딩 시도
+        return df.to_csv(encoding='cp949', **kwargs)
+    except UnicodeEncodeError:
+        # cp949로 인코딩 실패 시 utf-8-sig로 fallback
+        return df.to_csv(encoding='utf-8-sig', **kwargs)
+
 def download_data_button(df: pd.DataFrame, filename: str = "dashboard_data.csv") -> None:
     """
-    데이터 다운로드 버튼 생성
+    데이터 다운로드 버튼 생성 (Windows 환경에서 한글 깨짐 방지)
     """
-    csv = df.to_csv(index=False)
+    csv = safe_csv_encode(df, index=False)
+    
     st.download_button(
         label="📥 현재 뷰 데이터 다운로드",
         data=csv,
