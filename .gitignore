@@ -19,3 +19,4 @@ test/
 
 sample_submission.csv
 base_test_merged_seg.csv
+.env
