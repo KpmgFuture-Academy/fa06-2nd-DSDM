@@ -167,7 +167,7 @@ def load_data() -> pd.DataFrame:
             
             # 실제 데이터 범위 확인
             unique_months = sorted(df['기준년월'].unique())
-            st.info(f"ℹ️ 데이터 기간: {unique_months[0]} ~ {unique_months[-1]} ({len(unique_months)}개월)")
+            # st.info(f"ℹ️ 데이터 기간: {unique_months[0]} ~ {unique_months[-1]} ({len(unique_months)}개월)")
         elif 'Date' not in df.columns:
             st.warning("⚠️ 날짜 컬럼이 없습니다. 기준년월 컬럼을 확인해주세요.")
             df['Year'] = 2018  # 기본값
@@ -189,7 +189,7 @@ def load_data() -> pd.DataFrame:
             df['AgeGroup'] = df['AgeGroup'].replace(['nan', 'NaN', 'None', ''], '30대')
         else:
             st.warning("⚠️ 연령 관련 컬럼을 찾을 수 없습니다.")
-            st.info(f"ℹ️ 사용 가능한 컬럼들: {list(df.columns)[:20]}...")
+            # st.info(f"ℹ️ 사용 가능한 컬럼들: {list(df.columns)[:20]}...")
             df['AgeGroup'] = '30대'
         
         # 지역 컬럼 확인 및 생성
@@ -272,13 +272,13 @@ def map_columns(df: pd.DataFrame) -> pd.DataFrame:
         limit_candidates = [col for col in df.columns if any(keyword in col.lower() for keyword in ['한도', 'limit', 'credit_limit', 'card_limit'])]
         if limit_candidates:
             df['카드이용한도금액'] = pd.to_numeric(df[limit_candidates[0]], errors='coerce').fillna(100000)
-            st.info(f"ℹ️ 카드이용한도금액을 '{limit_candidates[0]}' 컬럼에서 매핑했습니다.")
+            # st.info(f"ℹ️ 카드이용한도금액을 '{limit_candidates[0]}' 컬럼에서 매핑했습니다.")
         else:
             # 기본값으로 설정 (실제 데이터 기반 추정)
             if '총이용금액_B0M' in df.columns:
                 # 총이용금액의 3배를 한도로 추정
                 df['카드이용한도금액'] = (pd.to_numeric(df['총이용금액_B0M'], errors='coerce') * 3).fillna(100000)
-                st.info("ℹ️ 카드이용한도금액을 총이용금액 기반으로 추정 생성했습니다.")
+                # st.info("ℹ️ 카드이용한도금액을 총이용금액 기반으로 추정 생성했습니다.")
             else:
                 df['카드이용한도금액'] = 100000  # 기본값
                 st.warning("⚠️ 카드이용한도금액 컬럼이 없어 기본값(100,000)으로 설정했습니다.")
