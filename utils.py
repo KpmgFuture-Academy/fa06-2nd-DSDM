@@ -182,7 +182,7 @@ def load_data() -> pd.DataFrame:
         
         if age_candidates:
             age_column = age_candidates[0]
-            st.info(f"ℹ️ 연령 컬럼 발견: '{age_column}'")
+            # st.info(f"ℹ️ 연령 컬럼 발견: '{age_column}'")
             # 기존 연령 컬럼을 AgeGroup으로 직접 사용
             df['AgeGroup'] = df[age_column].astype(str)
             # NaN이나 빈 값 처리

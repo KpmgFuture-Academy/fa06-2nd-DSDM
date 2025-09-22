@@ -10,6 +10,86 @@ import plotly.graph_objects as go
 from datetime import datetime, date
 from utils import load_data, apply_filters, SEGMENT_ORDER, SEGMENT_COLORS, format_number, get_device_info, _get_device, gpu_accelerated_computation, TORCH_AVAILABLE
 
+import html
+import streamlit as st
+from streamlit.components.v1 import html as st_html
+
+# --- OPENAI ---
+from dotenv import load_dotenv
+from openai import OpenAI
+import os
+
+load_dotenv()
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+prompt_template = """
+    너는 데이터 분석가이자 비즈니스 컨설턴트다.  
+    아래 데이터를 토대로 신뢰할 수 있는 요약과 인사이트를 작성하라. 
+    답변은 간결하고 핵심적인 어투로 정리할 것.
+
+    출력은 두 개의 큰 카테고리로 나눈다.  
+    각 카테고리는 시각적으로 한눈에 들어오도록 구조화한다.
+
+    ### 1. 데이터 요약 (Data Summary)
+    - 표(table) 형식으로 핵심 지표를 정리한다.  
+    - 표는 항목(지표) / 값(숫자·분포) / 설명 세 열 구조로 작성한다.  
+    - 우측 항목(지표) 세부 내용들은 **굵게** 표시한다. 
+    - 표 아래에는 필요한 경우 간단한 불릿 포인트로 추가 설명을 붙인다.
+    - 강조할 수치(최대값, 최소값, 비율)는 **굵게** 표시한다.  
+
+    ### 2. 핵심 인사이트 및 실행 제안 (Key Insights & Action Plan)
+    - 소제목을 나누어 구조화한다. (예: 고객 특성 / 카테고리별 기회 / 액션 플랜 / 위험 요인)  
+    - 각 소제목 아래에는 불릿 포인트로 정리한다.  
+    - 반드시 수치나 비율을 근거로 설명하여 신뢰성을 높인다.  
+    - 액션 플랜은 2~4개의 구체적 실행 방안을 **번호 리스트(1. 2. 3.)**로 제시한다.  
+    - 잠재적 위험 요인도 간단히 정리한다.  
+
+    출력 형식은 Markdown으로 작성하며,  
+    제목(###), 소제목(**(1),(2)**)), 불릿(-), 번호리스트(1.) 등을 활용해 가독성을 높인다.  
+    """
+
+def openai_get_insight(prompt_template, *dfs, model="gpt-4o"):
+    """
+    dfs: DataFrame들(1~5개). 
+         이름을 주고 싶으면 ("name", df) 튜플로 넘겨도 됨.
+         예) openai_get_insight(pt, df1) 
+             openai_get_insight(pt, df1, df2, df3)
+             openai_get_insight(pt, ("kpi", df1), ("segment", df2))
+    """
+    # 단일 인자로 dict가 오면 처리
+    if len(dfs) == 1 and isinstance(dfs[0], dict):
+        pairs = list(dfs[0].items())
+    else:
+        pairs = []
+        for i, d in enumerate(dfs, 1):
+            if isinstance(d, tuple) and len(d) == 2 and isinstance(d[1], pd.DataFrame):
+                name, df = d
+            else:
+                name, df = f"df_{i}", d
+            pairs.append((str(name), df))
+
+    blocks = [
+        f"### DATASET: {name}\n```csv\n{df.to_csv(index=False)}\n```"
+        for name, df in pairs
+    ]
+    content = "\n\n".join(blocks)
+
+    messages = [
+        {"role": "system", "content": prompt_template},
+        {"role": "user", "content": content},
+    ]
+    resp = client.chat.completions.create(model=model, messages=messages)
+    return resp.choices[0].message.content
+
+def csv_dl(df, label, index=False):
+    """ dataframe > UI label > index T/F """
+    csv_byte = df.to_csv(index=index).encode('utf-8-sig')
+    st.download_button(
+        label=f'📥 {label} 데이터 다운로드',
+        data=csv_byte,
+        file_name=f'{label}_analysis.csv',
+        mime="text/csv; charset=utf-8",
+    )
+
 # --- NAV 정의 ---
 NAV = {
     "세그먼트별 비교분석": {
@@ -215,15 +295,13 @@ def render_kpi_analysis(df: pd.DataFrame, collector: dict = None, return_df: boo
     with col2:
         render_payment_method_chart(df, collector=collector)
     
-    # CSV 다운로드
+    # AI 요약    
     st.markdown("---")
-    csv_data = kpi_data_sorted.to_csv(index=False)
-    st.download_button(
-        label="📥 KPI 데이터 다운로드",
-        data=csv_data,
-        file_name="kpi_analysis.csv",
-        mime="text/csv"
-    )
+    with st.expander("📈 분석 인사이트 보기", expanded=False):
+        st.markdown(openai_get_insight(prompt_template, kpi_data))
+
+    # CSV 다운로드
+    csv_dl(kpi_data, "KPI", index=False)
     
     # 데이터프레임 반환
     if return_df:
@@ -273,71 +351,54 @@ def calculate_kpi_metrics(df: pd.DataFrame) -> pd.DataFrame:
 
 def render_kpi_cards(kpi_data: pd.DataFrame, collector: dict = None, return_df: bool = False):
     """KPI 카드 렌더링"""
-    cards_per_row = 5  # A, B, C, D, E 모두 표시
-    
-    cols = st.columns(cards_per_row)
+    cols = st.columns(5)
     
     for j, col in enumerate(cols):
-        if j < len(SEGMENT_ORDER):
-            segment = SEGMENT_ORDER[j]
-            
-            # 해당 세그먼트 데이터 찾기
-            segment_row = kpi_data[kpi_data['Segment'] == segment]
-            
-            with col:
-                if segment_row.empty or segment_row.iloc[0]['고객수'] < 10:  # 희소 데이터
-                    st.markdown(f"""
-                    <div style="
-                        padding: 1rem; 
-                        border-radius: 0.5rem; 
-                        background-color: #f8f9fa; 
-                        border: 1px solid #dee2e6;
-                        text-align: center;
-                        color: #6c757d;
-                        height: 200px;
-                        display: flex;
-                        flex-direction: column;
-                        justify-content: center;
-                    ">
-                        <h4 style="color: #6c757d; margin: 0;">세그먼트 {segment}</h4>
-                        <p style="margin: 0.5rem 0 0 0;">데이터 없음</p>
-                    </div>
-                    """, unsafe_allow_html=True)
-                else:
-                    segment_data = segment_row.iloc[0]
-                    
-                    # 정상 데이터 카드
-                    st.markdown(f"""
-                    <div style="
-                        padding: 1rem; 
-                        border-radius: 0.5rem; 
-                        background-color: #ffffff; 
-                        border: 1px solid #dee2e6;
-                        text-align: center;
-                        height: 200px;
-                        display: flex;
-                        flex-direction: column;
-                        justify-content: space-between;
-                    ">
-                        <div>
-                            <h4 style="color: {SEGMENT_COLORS.get(segment, '#6c757d')}; margin: 0;">세그먼트 {segment}</h4>
-                            <div style="margin: 0.5rem 0;">
-                                <div style="font-size: 1.1rem; font-weight: bold; color: #2c3e50;">
-                                    {format_number(segment_data['ARPU'], '원')}
-                                </div>
-                                <div style="font-size: 0.8rem; color: {'#27ae60' if segment_data['ARPU_증감'] >= 0 else '#e74c3c'};">
-                                    {segment_data['ARPU_증감']:+.2f}%
-                                </div>
+        if j >= len(SEGMENT_ORDER):
+            continue
+        seg = SEGMENT_ORDER[j]
+        row = kpi_data[kpi_data['Segment'] == seg]
+
+        with col:
+            if row.empty or row.iloc[0]['고객수'] < 10:
+                box = f"""
+                <div style="padding:1rem;border:1px solid #dee2e6;
+                    border-radius:0.5rem;background:#f8f9fa;min-height:180px;
+                    text-align:center;display:flex;flex-direction:column;
+                    justify-content:center;color:#6c757d">
+                    <h4>세그먼트 {seg}</h4>
+                    <p>데이터 없음</p>
+                </div>
+                """
+            else:
+                sd = row.iloc[0]
+                color = SEGMENT_COLORS.get(seg, "#6c757d")
+                delta_color = "#27ae60" if sd['ARPU_증감'] >= 0 else "#e74c3c"
+
+                box = f"""
+                <div style="padding:1rem;border:1px solid #dee2e6;
+                    border-radius:0.5rem;background:#fff;min-height:180px;
+                    text-align:center;display:flex;flex-direction:column;
+                    justify-content:space-between">
+                    <div>
+                        <h4 style="color:{color};margin:0">세그먼트 {seg}</h4>
+                        <div style="margin:0.5rem 0">
+                            <div style="font-weight:bold;font-size:1.1rem;color:#2c3e50">
+                                {format_number(sd['ARPU'], '원')}
+                            </div>
+                            <div style="font-size:0.8rem;color:{delta_color}">
+                                {sd['ARPU_증감']:+.2f}%
                             </div>
                         </div>
-                        
-                        <div style="font-size: 0.7rem; color: #7f8c8d;">
-                            <div>객단가: {format_number(segment_data['객단가'], '원')}</div>
-                            <div>이용률: {segment_data['이용률']:.2f}%</div>
-                            <div>연체율: {segment_data['연체율']:.2f}%</div>
-                        </div>
                     </div>
-                    """, unsafe_allow_html=True)
+                    <div style="font-size:0.9rem;color:#7f8c8d">
+                        <div>객단가: {format_number(sd['객단가'],'원')}</div>
+                        <div>이용률: {sd['이용률']:.2f}%</div>
+                        <div>연체율: {sd['연체율']:.2f}%</div>
+                    </div>
+                </div>
+                """
+            st_html(box, height=240)
     
     # 데이터프레임 수집
     if collector is not None:
@@ -596,12 +657,25 @@ def render_segment_details(df: pd.DataFrame, collector: dict = None, return_df: 
     industry_data = render_industry_analysis(df, collector=collector)
     
     # 3. 코호트/잔존 분석
-    st.markdown("#### 📈 코호트/잔존 분석")
-    cohort_data = render_cohort_analysis(df, collector=collector)
+    # st.markdown("#### 📈 코호트/잔존 분석")
+    # cohort_data = render_cohort_analysis(df, collector=collector)
     
-    # 4. 다운로드 버튼
+    # 4. AI 요약
     st.markdown("---")
-    render_download_section(df, collector=collector)
+    with st.expander("📈 분석 인사이트 보기", expanded=False):
+        df_dict = {'Age * Segment 데이터':age_segment_data, 'Region * Segment 데이터':region_segment_data, 'Channel 데이터':channel_preference_data, '업종 데이터':industry_data}
+        st.markdown(openai_get_insight(prompt_template, df_dict))
+
+    # 5. CSV 다운로드
+    csv_dl(age_segment_data, "Age_Segment", index=True)
+    csv_dl(region_segment_data, "Region_Segment", index=True)
+    csv_dl(channel_preference_data, "Channel", index=False)
+    csv_dl(industry_data, "Industry", index=False)
+    # csv_dl(cohort_data, "Cohort", index=False)
+    
+    # # 4. 다운로드 버튼
+    # st.markdown("---")
+    # render_download_section(df, collector=collector)
     
     # 데이터프레임 반환
     if return_df:
