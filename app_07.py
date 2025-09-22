@@ -10,78 +10,6 @@ import plotly.graph_objects as go
 from datetime import datetime, date
 from utils import load_data, apply_filters, SEGMENT_ORDER, SEGMENT_COLORS, format_number, get_device_info, _get_device, gpu_accelerated_computation, TORCH_AVAILABLE
 
-
-import html
-import streamlit as st
-from streamlit.components.v1 import html as st_html
-
-# --- OPENAI ---
-from dotenv import load_dotenv
-from openai import OpenAI
-import os
-
-load_dotenv()
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-prompt_template = """
-    너는 데이터 분석가이자 비즈니스 컨설턴트다.  
-    아래 데이터를 토대로 신뢰할 수 있는 요약과 인사이트를 작성하라. 
-    답변은 간결하고 핵심적인 어투로 정리할 것.
-
-    출력은 두 개의 큰 카테고리로 나눈다.  
-    각 카테고리는 시각적으로 한눈에 들어오도록 구조화한다.
-
-    ### 1. 데이터 요약 (Data Summary)
-    - 표(table) 형식으로 핵심 지표를 정리한다.  
-    - 표는 항목(지표) / 값(숫자·분포) / 설명 세 열 구조로 작성한다.  
-    - 우측 항목(지표) 세부 내용들은 **굵게** 표시한다. 
-    - 표 아래에는 필요한 경우 간단한 불릿 포인트로 추가 설명을 붙인다.
-    - 강조할 수치(최대값, 최소값, 비율)는 **굵게** 표시한다.  
-
-    ### 2. 핵심 인사이트 및 실행 제안 (Key Insights & Action Plan)
-    - 소제목을 나누어 구조화한다. (예: 고객 특성 / 카테고리별 기회 / 액션 플랜 / 위험 요인)  
-    - 각 소제목 아래에는 불릿 포인트로 정리한다.  
-    - 반드시 수치나 비율을 근거로 설명하여 신뢰성을 높인다.  
-    - 액션 플랜은 2~4개의 구체적 실행 방안을 **번호 리스트(1. 2. 3.)**로 제시한다.  
-    - 잠재적 위험 요인도 간단히 정리한다.  
-
-    출력 형식은 Markdown으로 작성하며,  
-    제목(###), 소제목(**(1),(2)**)), 불릿(-), 번호리스트(1.) 등을 활용해 가독성을 높인다.  
-    """
-
-def openai_get_insight(prompt_template, *dfs, model="gpt-4o"):
-    """
-    dfs: DataFrame들(1~5개). 
-         이름을 주고 싶으면 ("name", df) 튜플로 넘겨도 됨.
-         예) openai_get_insight(pt, df1) 
-             openai_get_insight(pt, df1, df2, df3)
-             openai_get_insight(pt, ("kpi", df1), ("segment", df2))
-    """
-    # 단일 인자로 dict가 오면 처리
-    if len(dfs) == 1 and isinstance(dfs[0], dict):
-        pairs = list(dfs[0].items())
-    else:
-        pairs = []
-        for i, d in enumerate(dfs, 1):
-            if isinstance(d, tuple) and len(d) == 2 and isinstance(d[1], pd.DataFrame):
-                name, df = d
-            else:
-                name, df = f"df_{i}", d
-            pairs.append((str(name), df))
-
-    blocks = [
-        f"### DATASET: {name}\n```csv\n{df.to_csv(index=False)}\n```"
-        for name, df in pairs
-    ]
-    content = "\n\n".join(blocks)
-
-    messages = [
-        {"role": "system", "content": prompt_template},
-        {"role": "user", "content": content},
-    ]
-    resp = client.chat.completions.create(model=model, messages=messages)
-    return resp.choices[0].message.content
-
-
 # --- NAV 정의 ---
 NAV = {
     "세그먼트별 비교분석": {
@@ -287,13 +215,15 @@ def render_kpi_analysis(df: pd.DataFrame, collector: dict = None, return_df: boo
     with col2:
         render_payment_method_chart(df, collector=collector)
     
-    # AI 요약    
-    st.markdown("---")
-    with st.expander("📈 분석 인사이트 보기", expanded=False):
-        st.markdown(openai_get_insight(prompt_template, kpi_data))
-
     # CSV 다운로드
-    csv_dl(kpi_data, "KPI", index=False)
+    st.markdown("---")
+    csv_data = kpi_data_sorted.to_csv(index=False)
+    st.download_button(
+        label="📥 KPI 데이터 다운로드",
+        data=csv_data,
+        file_name="kpi_analysis.csv",
+        mime="text/csv"
+    )
     
     # 데이터프레임 반환
     if return_df:
