@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>프로젝트 WBS 간트 차트</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Noto Sans KR', sans-serif; background:#f8fafc; color:#1e293b; }
+    /* 스크롤바 */
+    ::-webkit-scrollbar{ width:8px; height:8px; }
+    ::-webkit-scrollbar-track{ background:#e2e8f0; }
+    ::-webkit-scrollbar-thumb{ background:#94a3b8; border-radius:10px; }
+    ::-webkit-scrollbar-thumb:hover{ background:#64748b; }
+
+    /* 배경 그리드(세로선) */
+    .gantt-grid-bg {
+      background-size: calc(100% / var(--days)) 100%;
+      background-image: linear-gradient(to right, #e2e8f0 1px, transparent 1px);
+    }
+    /* Hover 팝업 */
+    .task-bar-popup {
+      opacity:0; visibility:hidden; position:absolute; bottom:105%; left:50%;
+      transform: translateX(-50%) translateY(6px);
+      transition: opacity .2s ease, visibility .2s ease, transform .2s ease;
+      min-width:260px; z-index:20;
+    }
+    .task-bar:hover .task-bar-popup{
+      opacity:1; visibility:visible; transform: translateX(-50%) translateY(0);
+    }
+    /* 주말 음영 */
+    .weekend { background-color: rgba(148,163,184,.15); }
+  </style>
+</head>
+<body class="p-4 sm:p-6 md:p-10">
+  <div class="max-w-screen-2xl mx-auto">
+    <header class="mb-8 text-center">
+      <h1 class="text-3xl sm:text-4xl font-bold">프로젝트 WBS 간트 차트</h1>
+      <p class="text-slate-500 mt-2">날짜 기반 타임라인으로 시각화된 작업 분할 구조</p>
+    </header>
+
+    <!-- 범례 -->
+    <div id="legend" class="flex flex-wrap gap-3 mb-4"></div>
+
+    <!-- 차트 카드 -->
+    <div class="bg-white rounded-xl shadow-lg overflow-hidden border border-slate-200">
+      <div id="gantt-chart-container" class="overflow-x-auto">
+        <div id="wbs-chart"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /* ===== 1) 프로젝트 기간 설정 ===== */
+    const projectStartDate = new Date("2025-09-11");
+    const projectEndDate   = new Date("2025-09-18"); // 포함
+
+    /* ===== 2) WBS 데이터 (질문에 적어주신 구조 반영) ===== */
+    const wbsData = [
+      {
+        phase: "1. 기획",
+        tasks: [
+          { mid: "1.1 문제 정의", details: ["문제/목표 정립", "이해관계자 및 리스크 가설"], output:"기획서 초안",
+            startDate:"2025-09-11", endDate:"2025-09-11" },
+          { mid: "1.2 데이터 요구사항 정의", details:["소스/필드/주기 정의", "보안·권한 체크"], output:"데이터 요구사항서",
+            startDate:"2025-09-11", endDate:"2025-09-12" },
+        ]
+      },
+      {
+        phase: "2. 데이터 수집 및 준비",
+        tasks: [
+          { mid: "2.1 데이터 소스 조사", details:["내부/외부 소스 목록화", "API 가능성 검토"], output:"소스 인벤토리",
+            startDate:"2025-09-12", endDate:"2025-09-12" },
+          { mid: "2.2 데이터 수집 및 저장", details:["크롤/추출/적재 파이프라인"], output:"원천 적재",
+            startDate:"2025-09-12", endDate:"2025-09-13" },
+          { mid: "2.3 데이터 전처리", details:["정합성·결측·형 변환", "스키마 통합"], output:"정제 데이터셋",
+            startDate:"2025-09-13", endDate:"2025-09-14" },
+        ]
+      },
+      {
+        phase: "3. 데이터 분석 및 모델링",
+        tasks: [
+          { mid: "3.1 탐색/시각화", details:["EDA, 분포/상관", "세그먼트 가설"], output:"EDA 리포트",
+            startDate:"2025-09-13", endDate:"2025-09-14" },
+          { mid: "3.2 모델 선택/학습", details:["베이스라인→튜닝", "리스크·마케팅 타깃"], output:"학습 모델",
+            startDate:"2025-09-14", endDate:"2025-09-15" },
+          { mid: "3.3 성능 평가", details:["CV/홀드아웃", "비즈니스 지표 연계"], output:"평가 리포트",
+            startDate:"2025-09-15", endDate:"2025-09-15" },
+        ]
+      },
+      {
+        phase: "4. 화면 기획",
+        tasks: [
+          { mid: "4.1 대시보드 들어갈 내용", details:["KPI·세그먼트·트렌드 탭"], output:"콘텐츠 목록",
+            startDate:"2025-09-14", endDate:"2025-09-15" },
+          { mid: "4.2 화면 설계(와이어)", details:["레이아웃/컴포넌트/상태"], output:"와이어프레임",
+            startDate:"2025-09-15", endDate:"2025-09-16" },
+          { mid: "4.3 성능 평가(프론트)", details:["렌더 성능·UX 점검"], output:"성능 체크리스트",
+            startDate:"2025-09-16", endDate:"2025-09-16" },
+        ]
+      },
+      {
+        phase: "5. 결과 도출 및 보고",
+        tasks: [
+          { mid: "5.1 결과 요약", details:["핵심 인사이트 정리"], output:"요약본",
+            startDate:"2025-09-16", endDate:"2025-09-17" },
+          { mid: "5.2 보고서 작성", details:["서술·도표·부록"], output:"최종 보고서",
+            startDate:"2025-09-17", endDate:"2025-09-18" },
+          { mid: "5.3 최종 발표", details:["데모·Q&A 준비"], output:"발표 자료",
+            startDate:"2025-09-18", endDate:"2025-09-18" },
+        ]
+      },
+    ];
+
+    /* ===== 3) 유틸 ===== */
+    const DAY_MS = 24 * 60 * 60 * 1000;
+    const dateDiffInDays = (a, b) => {
+      const utc1 = Date.UTC(a.getFullYear(), a.getMonth(), a.getDate());
+      const utc2 = Date.UTC(b.getFullYear(), b.getMonth(), b.getDate());
+      return Math.floor((utc2 - utc1) / DAY_MS);
+    };
+    const totalDays = dateDiffInDays(projectStartDate, projectEndDate) + 1;
+
+    // 단계 컬러 팔레트
+    const phaseColors = ['#34d399','#22d3ee','#60a5fa','#a78bfa','#f472b6','#fb923c','#facc15','#a3e635'];
+
+    /* ===== 4) 헤더(요일/일자) 생성 ===== */
+    const dow = ['일','월','화','수','목','금','토'];
+    let dateHeaderHTML = '';
+    let weekendMask = []; // 주말 여부 기록
+    for (let i=0; i<totalDays; i++){
+      const d = new Date(projectStartDat
