@@ -84,6 +84,53 @@
 
 ## 📌 작업 분할 구조 (WBS)
 
+gantt
+    title 신용카드 고객 세그먼트 대시보드 프로젝트 Gantt Chart
+    dateFormat  YYYY-MM-DD
+    section 프로젝트 관리
+    개요 회의           :a1, 2025-09-25, 1d
+    R&R 배정            :a2, after a1, 1d
+    일정 관리/진행일지   :a3, after a2, 3d
+
+    section 데이터 준비
+    데이터 정의서 작성   :b1, 2025-09-26, 2d
+    데이터 수집(ETL)     :b2, after b1, 5d
+    데이터 전처리        :b3, after b2, 5d
+    데이터 통합          :b4, after b3, 3d
+
+    section 분석 및 모델링
+    세그먼트 기준 정의   :c1, 2025-09-29, 3d
+    Feature Engineering :c2, after c1, 3d
+    Baseline 모델링      :c3, after c2, 3d
+    CatBoost 모델링      :c4, after c3, 5d
+    모델 검증(AUC/F1)   :c5, after c4, 3d
+    Explainability 분석 :c6, after c5, 2d
+
+    section 대시보드 개발
+    IA/UX 설계           :d1, 2025-10-01, 3d
+    메인 페이지 구현     :d2, after d1, 4d
+    리스크 분석 탭 구현  :d3, after d2, 3d
+    행동/마케팅 탭 구현  :d4, after d3, 3d
+    LLM 인사이트 개발    :d5, after d4, 3d
+    성능 최적화          :d6, after d5, 2d
+
+    section 검증 및 운영
+    QA(기능/성능/보안)  :e1, 2025-10-08, 3d
+    파일럿 테스트        :e2, after e1, 4d
+    피드백 반영          :e3, after e2, 3d
+    모니터링 지표 구축   :e4, after e3, 2d
+
+    section 산출물 제작
+    시각화 리포트 작성   :f1, 2025-10-05, 4d
+    발표자료 제작        :f2, after f1, 5d
+    소개 영상 제작       :f3, after f2, 3d
+    최종 보고서/README  :f4, after f3, 2d
+
+    section 발표 및 마무리
+    리허설               :g1, 2025-10-12, 1d
+    최종 발표            :g2, after g1, 1d
+    회고 & 문서화        :g3, after g2, 2d
+
 
 ### 1. 프로젝트 관리
 
