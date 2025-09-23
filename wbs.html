@@ -54,7 +54,7 @@
   <script>
     /* ===== 1) 프로젝트 기간 설정 ===== */
     // const projectStartDate = new Date("2025-09-11");
-    // const projectEndDate   = new Date("2025-09-18"); // 포함
+    // const projectEndDate   = new Date("2025-09-23"); // 포함
 
     /* ===== 2) WBS 데이터 (질문에 적어주신 구조 반영) ===== */
     const wbsData = [
@@ -62,53 +62,53 @@
         phase: "1. 기획",
         tasks: [
           { mid: "1.1 문제 정의", details: ["문제/목표 정립", "이해관계자 및 리스크 가설"], output:"기획서 초안",
-            startDate:"2025-09-11", endDate:"2025-09-11" },
+            startDate:"2025-09-12", endDate:"2025-09-12" },
           { mid: "1.2 데이터 요구사항 정의", details:["소스/필드/주기 정의", "보안·권한 체크"], output:"데이터 요구사항서",
-            startDate:"2025-09-11", endDate:"2025-09-12" },
+            startDate:"2025-09-12", endDate:"2025-09-15" },
         ]
       },
       {
         phase: "2. 데이터 수집 및 준비",
         tasks: [
           { mid: "2.1 데이터 소스 조사", details:["내부/외부 소스 목록화", "API 가능성 검토"], output:"소스 인벤토리",
-            startDate:"2025-09-12", endDate:"2025-09-12" },
+            startDate:"2025-09-12", endDate:"2025-09-15" },
           { mid: "2.2 데이터 수집 및 저장", details:["크롤/추출/적재 파이프라인"], output:"원천 적재",
-            startDate:"2025-09-12", endDate:"2025-09-13" },
+            startDate:"2025-09-12", endDate:"2025-09-15" },
           { mid: "2.3 데이터 전처리", details:["정합성·결측·형 변환", "스키마 통합"], output:"정제 데이터셋",
-            startDate:"2025-09-13", endDate:"2025-09-14" },
+            startDate:"2025-09-15", endDate:"2025-09-17" },
         ]
       },
       {
         phase: "3. 데이터 분석 및 모델링",
         tasks: [
           { mid: "3.1 탐색/시각화", details:["EDA, 분포/상관", "세그먼트 가설"], output:"EDA 리포트",
-            startDate:"2025-09-13", endDate:"2025-09-14" },
+            startDate:"2025-09-15", endDate:"2025-09-17" },
           { mid: "3.2 모델 선택/학습", details:["베이스라인→튜닝", "리스크·마케팅 타깃"], output:"학습 모델",
-            startDate:"2025-09-14", endDate:"2025-09-15" },
+            startDate:"2025-09-17", endDate:"2025-09-18" },
           { mid: "3.3 성능 평가", details:["CV/홀드아웃", "비즈니스 지표 연계"], output:"평가 리포트",
-            startDate:"2025-09-15", endDate:"2025-09-15" },
+            startDate:"2025-09-18", endDate:"2025-09-18" },
         ]
       },
       {
         phase: "4. 화면 기획",
         tasks: [
           { mid: "4.1 대시보드 들어갈 내용", details:["KPI·세그먼트·트렌드 탭"], output:"콘텐츠 목록",
-            startDate:"2025-09-14", endDate:"2025-09-15" },
+            startDate:"2025-09-18", endDate:"2025-09-19" },
           { mid: "4.2 화면 설계(와이어)", details:["레이아웃/컴포넌트/상태"], output:"와이어프레임",
-            startDate:"2025-09-15", endDate:"2025-09-16" },
+            startDate:"2025-09-18", endDate:"2025-09-19" },
           { mid: "4.3 성능 평가(프론트)", details:["렌더 성능·UX 점검"], output:"성능 체크리스트",
-            startDate:"2025-09-16", endDate:"2025-09-16" },
+            startDate:"2025-09-22", endDate:"2025-09-22" },
         ]
       },
       {
         phase: "5. 결과 도출 및 보고",
         tasks: [
           { mid: "5.1 결과 요약", details:["핵심 인사이트 정리"], output:"요약본",
-            startDate:"2025-09-16", endDate:"2025-09-17" },
+            startDate:"2025-09-22", endDate:"2025-09-23" },
           { mid: "5.2 보고서 작성", details:["서술·도표·부록"], output:"최종 보고서",
-            startDate:"2025-09-17", endDate:"2025-09-18" },
+            startDate:"2025-09-22", endDate:"2025-09-23" },
           { mid: "5.3 최종 발표", details:["데모·Q&A 준비"], output:"발표 자료",
-            startDate:"2025-09-18", endDate:"2025-09-18" },
+            startDate:"2025-09-23", endDate:"2025-09-23" },
         ]
       },
     ];
@@ -232,4 +232,5 @@
   </script>
 </body>
 </html>
+
 
