@@ -171,40 +171,7 @@
 
 ## 🏗 데이터 아키텍처
 
-```mermaid
-flowchart LR
-    A[데이콘 원천 데이터\n(회원/신용/승인매출/청구/잔액/채널/마케팅/성과)] --> B[로컬 Raw Zone]
-    B --> C[전처리/정합성 체크]
-    C --> D[월별 스냅샷 병합]
-    D --> E[ID+기준년월 기준 도메인 병합]
-    E --> F[최종 통합 Feature Mart]
-    F --> G[모델 학습/평가]
-    G --> H[대시보드/리포트]
-````
 
----
-
-## ▶ 실행 방법 (How to Run)
-
-```bash
-# 0) 가상환경 생성 & 진입
-python -m venv .venv
-source .venv/bin/activate    # (Windows: .venv\Scripts\activate)
-
-# 1) 의존성 설치
-pip install -r requirements.txt
-
-# 2) 데이터 전처리
-python scripts/00_merge_monthly.py
-python scripts/01_join_domains.py
-python scripts/02_clean_features.py
-
-# 3) 모델 학습 및 평가
-python scripts/03_train_eval.py
-
-# 4) 대시보드 실행
-streamlit run streamlit/app.py
-```
 
 ---
 
