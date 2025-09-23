@@ -190,10 +190,16 @@
 * 리스크 신호 모니터링 → **승인거절률/연체율 추이**
 * 행동 패턴 분석 → **로그인/채널 반응, 업종 소비 분포**
 
-> <img width="1495" height="688" alt="image" src="https://github.com/user-attachments/assets/63f8b476-97c6-47e0-b125-03b28f75e280" />
-> <img width="1484" height="747" alt="image" src="https://github.com/user-attachments/assets/6e857b1e-b012-486f-ae00-be663023f887" />
-> <img width="1284" height="698" alt="image" src="https://github.com/user-attachments/assets/852bcf92-b205-49ec-a688-a4650ada2eba" />
-> <img width="1313" height="662" alt="image" src="https://github.com/user-attachments/assets/9163d49c-ff92-4aba-a6c0-d174aad5060f" />
+<table>
+  <tr>
+    <td><img src="https://github.com/user-attachments/assets/63f8b476-97c6-47e0-b125-03b28f75e280" width="100%"></td>
+    <td><img src="https://github.com/user-attachments/assets/6e857b1e-b012-486f-ae00-be663023f887" width="100%"></td>
+  </tr>
+  <tr>
+    <td><img src="https://github.com/user-attachments/assets/852bcf92-b205-49ec-a688-a4650ada2eba" width="100%"></td>
+    <td><img src="https://github.com/user-attachments/assets/9163d49c-ff92-4aba-a6c0-d174aad5060f" width="100%"></td>
+  </tr>
+</table>
 
 
 ### 3. 기대효과
