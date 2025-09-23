@@ -1781,43 +1781,45 @@ def render_trend_download_section(trend_data: pd.DataFrame):
 def render_trend_analysis(df: pd.DataFrame, collector: dict = None, return_df: bool = False):
     """트렌드 분석(시계열)"""
     st.markdown("### 📈 트렌드 분석(시계열)")
+
+    _placeholder("(확장 예정) 트렌드 분석(시계열) 뷰가 준비 중입니다.")
     
-    if df.empty:
-        st.warning("데이터가 없습니다.")
-        return
+    # if df.empty:
+    #     st.warning("데이터가 없습니다.")
+    #     return
     
-    # 데이터프레임 수집 초기화
-    if collector is None:
-        collector = {}
+    # # 데이터프레임 수집 초기화
+    # if collector is None:
+    #     collector = {}
     
-    # 기본 데이터프레임 저장
-    collector["Trend/original_df"] = df.copy()
+    # # 기본 데이터프레임 저장
+    # collector["Trend/original_df"] = df.copy()
     
-    # 데이터 전처리
-    trend_data = prepare_trend_data(df)
-    collector["Trend/trend_base"] = trend_data.copy()
+    # # 데이터 전처리
+    # trend_data = prepare_trend_data(df)
+    # collector["Trend/trend_base"] = trend_data.copy()
     
-    # 컨트롤 패널
-    render_trend_controls(trend_data, collector=collector)
+    # # 컨트롤 패널
+    # render_trend_controls(trend_data, collector=collector)
     
-    # 시계열 라인 차트
-    render_time_series_chart(trend_data, collector=collector)
+    # # 시계열 라인 차트
+    # render_time_series_chart(trend_data, collector=collector)
     
-    # YoY/HoH 변화율 분석
-    render_yoy_analysis(trend_data, collector=collector)
+    # # YoY/HoH 변화율 분석
+    # render_yoy_analysis(trend_data, collector=collector)
     
-    # 이상치/급변 탐지
-    render_anomaly_detection(trend_data, collector=collector)
+    # # 이상치/급변 탐지
+    # render_anomaly_detection(trend_data, collector=collector)
     
-    # 분해 분석 (선택적)
-    render_seasonal_decomposition(trend_data, collector=collector)
+    # # 분해 분석 (선택적)
+    # render_seasonal_decomposition(trend_data, collector=collector)
     
-    # 다운로드 섹션
-    render_trend_download_section(trend_data, collector=collector)
+    # # 다운로드 섹션
+    # render_trend_download_section(trend_data, collector=collector)
     
-    # 데이터프레임 반환
-    if return_df:
-        return collector
+    # # 데이터프레임 반환
+    # if return_df:
+    #     return collector
 
 
 
