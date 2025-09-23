@@ -3,14 +3,10 @@
 ---
 
 ## 🎬 프로젝트 소개 영상
-- 파일명: (예: segment_dashboard_intro.mp4)  
-- 영상 설명:  
-- 영상 스크립트:  
+- 파일명: https://drive.google.com/file/d/1jUBGpA5X6nCLwQfXAJFermAcgF8seKwW/view?usp=drive_link  
 - 제작 도구:  
-  - 영상 편집 프로그램: Filmora  
-  - 이미지 제작: Flux (AI 이미지 생성 모델)  
-  - 음악: PremiumBeat (AI 음악 생성)  
-  - 목소리: AI TTS  
+  - 영상 편집 프로그램: veed
+  - 음악: iMovie
 
 ---
 
