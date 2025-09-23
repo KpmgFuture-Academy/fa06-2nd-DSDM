@@ -171,7 +171,7 @@
 
 ## 🏗 데이터 아키텍처
 
-
+<img width="1485" height="835" alt="image" src="https://github.com/user-attachments/assets/517ce337-25a9-4fb8-a0f1-8d0b27309c1f" />
 
 ---
 
