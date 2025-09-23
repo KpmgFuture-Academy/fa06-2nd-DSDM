@@ -83,46 +83,6 @@
 | 발표자료 작성 | 2025-10-05 | 2025-10-10 | 6 |
 | 소개 영상 제작 | 2025-10-08 | 2025-10-10 | 3 |
 
-
-gantt
-    title 신용카드 고객 세그먼트 대시보드 일정
-    dateFormat  YYYY-MM-DD
-    axisFormat  %m/%d
-
-    section 기획
-    개요 회의                  :done,     a1, 2025-09-25, 1d
-    R&R 배정                   :done,     a2, 2025-09-25, 1d
-    계획서/진행일지 작성        :active,   a3, 2025-09-25, 4d
-
-    section 데이터 준비
-    데이터 수집/정의           :planned,  a4, 2025-09-26, 5d
-    데이터 전처리              :inprog,   a5, 2025-09-28, 3d
-
-    section 모델링
-    세그먼트 알고리즘 설계      :inprog,   a6, 2025-09-29, 5d
-
-    section 개발
-    프로토타입 구현(Streamlit) :inprog,   a7, 2025-10-01, 7d
-    데이터 시각화              :inprog,   a8, 2025-10-02, 5d
-
-    section 산출물
-    발표자료 작성              :design,   a9, 2025-10-05, 2d
-    소개 영상 제작             :review,   a10, 2025-10-08, 1d
-
-    %% ----- Styles -----
-    classDef planned  fill:#E2E8F0,stroke:#94A3B8,color:#0F172A;     %% Planning(회색)
-    classDef inprog   fill:#BFDBFE,stroke:#60A5FA,color:#0C4A6E;     %% In Progress(파랑)
-    classDef design   fill:#E9D5FF,stroke:#A78BFA,color:#581C87;     %% Design(보라)
-    classDef review   fill:#FECACA,stroke:#F87171,color:#7F1D1D;     %% Review(빨강)
-    classDef done     fill:#BBF7D0,stroke:#34D399,color:#065F46;     %% Completed(초록)
-
-    class a1,a2 done
-    class a3 inprog
-    class a4 planned
-    class a5,a6,a7,a8 inprog
-    class a9 design
-    class a10 review
-
 ---
 
 ## 📌 작업 분할 구조 (WBS)
