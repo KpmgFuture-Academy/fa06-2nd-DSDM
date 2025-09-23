@@ -83,7 +83,7 @@
 
 ## 📌 작업 분할 구조 (WBS)
 
-[![WBS 구조](./docs/wbs_structure.png)](https://<username>.github.io/fa06-2nd-DSDM/wbs.html)
+https://kpmgfuture-academy.github.io/fa06-2nd-DSDM/wbs.html
 
 ---
 
