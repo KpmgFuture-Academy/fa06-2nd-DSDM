@@ -215,9 +215,5 @@
 * **LLM 기반 인사이트 요약 기능** PoC 완성
 * 파일럿 2개 부서 테스트 → **업무 효율 30%+ 향상**
 
-### 결과물
-
-* GitHub 저장소 링크: [🔗 Repository](https://github.com/your-repo-link)
-
 ```
 
