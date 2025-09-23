@@ -1,3 +1,6 @@
+const projectStartDate = new Date("2025-09-12");
+const projectEndDate   = new Date("2025-09-23");
+
 <!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -130,4 +133,105 @@
     let dateHeaderHTML = '';
     let weekendMask = []; // 주말 여부 기록
     for (let i=0; i<totalDays; i++){
-      const d = new Date(projectStartDat
+      const d = new Date(projectStartDate);
+      d.setDate(projectStartDate.getDate() + i);
+      const isWeekend = d.getDay() === 0 || d.getDay() === 6;
+      weekendMask.push(isWeekend);
+      dateHeaderHTML += `
+        <div class="text-center p-2 text-sm font-medium ${isWeekend ? 'text-slate-400' : 'text-slate-600'}">
+          <div class="text-xs">${dow[d.getDay()]}</div>
+          <div>${d.getDate()}</div>
+        </div>`;
+    }
+
+    /* ===== 5) 차트 렌더링 ===== */
+    const chartContainer = document.getElementById('wbs-chart');
+    const legendContainer = document.getElementById('legend');
+
+    // 범례
+    wbsData.forEach((p, i) => {
+      const c = phaseColors[i % phaseColors.length];
+      const item = document.createElement('div');
+      item.className = "flex items-center gap-2";
+      item.innerHTML = `<span class="inline-block w-4 h-4 rounded" style="background:${c}"></span>
+                        <span class="text-sm text-slate-700">${p.phase}</span>`;
+      legendContainer.appendChild(item);
+    });
+
+    // 헤더 + 바디
+    let html = `
+      <div class="min-w-[1000px]">
+        <!-- Header -->
+        <div class="sticky top-0 bg-white/75 backdrop-blur-sm z-10 grid border-b border-slate-200"
+             style="grid-template-columns: minmax(240px, 28%) 1fr;">
+          <div class="p-2 font-bold text-slate-700 text-center border-r border-slate-200 flex items-center justify-center">작업</div>
+          <div class="grid" style="grid-template-columns: repeat(${totalDays}, 1fr);">
+            ${dateHeaderHTML}
+          </div>
+        </div>
+    `;
+
+    // 각 단계/작업
+    wbsData.forEach((phase, idx) => {
+      const color = phaseColors[idx % phaseColors.length];
+
+      // 단계 타이틀 Row
+      html += `
+        <div class="grid" style="grid-template-columns: minmax(240px, 28%) 1fr;">
+          <div class="col-span-full bg-slate-100 font-bold p-2 text-slate-600 border-b border-t border-slate-200">${phase.phase}</div>
+        </div>
+      `;
+
+      // 작업 Row
+      phase.tasks.forEach(task => {
+        const s = new Date(task.startDate);
+        const e = new Date(task.endDate);
+        const startCol = dateDiffInDays(projectStartDate, s) + 1; // CSS grid 1-indexed
+        const duration = dateDiffInDays(s, e) + 1;
+
+        // 타임라인 셀(주말 음영) + 바
+        let cells = "";
+        for (let i=0; i<totalDays; i++){
+          cells += `<div class="${weekendMask[i] ? 'weekend' : ''}"></div>`;
+        }
+
+        html += `
+          <div class="grid border-b border-slate-200" style="grid-template-columns: minmax(240px, 28%) 1fr;">
+            <!-- 작업 이름 -->
+            <div class="p-3 text-sm border-r border-slate-200 truncate flex items-center min-h-[52px]">${task.mid}</div>
+
+            <!-- 타임라인 -->
+            <div class="relative grid gantt-grid-bg" style="--days:${totalDays}; grid-template-columns: repeat(${totalDays}, 1fr);">
+              ${cells}
+              <div class="task-bar relative p-1 h-full" style="grid-column: ${startCol} / span ${duration};">
+                <div class="relative w-full h-full rounded-md flex items-center px-3 text-white font-semibold text-sm shadow-md"
+                     style="background:${color}">
+                  <span class="truncate">${task.mid}</span>
+                </div>
+
+                <!-- 팝업 -->
+                <div class="task-bar-popup bg-slate-800 text-white p-3 rounded-lg shadow-2xl">
+                  <h4 class="font-bold text-base">${task.mid}</h4>
+                  <p class="text-xs text-slate-300 mb-2">${task.startDate} ~ ${task.endDate}</p>
+                  <ul class="list-disc list-inside text-sm text-slate-200 space-y-1">
+                    ${(task.details || []).map(d => `<li>${d}</li>`).join("")}
+                  </ul>
+                  ${task.output ? `
+                    <div class="mt-2 text-right">
+                      <span class="inline-block bg-white/20 text-white text-xs font-semibold px-2 py-1 rounded-full">
+                        산출물: ${task.output}
+                      </span>
+                    </div>` : ''}
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+      });
+    });
+
+    html += `</div>`;
+    chartContainer.innerHTML = html;
+  </script>
+</body>
+</html>
