@@ -166,58 +166,12 @@ https://kpmgfuture-academy.github.io/fa06-2nd-DSDM/wbs.html
 ### 4.4 아키텍처 다이어그램
 
 #### 데이터 아키텍처
-```mermaid
-graph TD
-  A[CSV: base_test_merged_seg.csv] -->|utils.load_data| B[Raw DataFrame]
-  B --> C[전처리/파생지표 계산]
-  C --> D[글로벌 필터 적용]
-  D --> E[KPI/세부특성/트렌드 데이터셋]
-  D --> F[리스크 분석 데이터셋]
-  D --> G[행동마케팅 데이터셋]
-  E --> H[시각화(Plotly)]
-  F --> H
-  G --> H
-  H --> I[CSV 다운로드]
-  subgraph GPU 옵션
-    C -. TORCH_AVAILABLE/gpu_accelerated_computation .-> C
-    F -. GPU 가속 (대용량 계산) .-> F
-  end
-```
+
+<img width="1627" height="674" alt="image" src="https://github.com/user-attachments/assets/e85e6d5d-8f89-414d-95c8-fe9b2d87706a" />
 
 #### 서비스 UX 아키텍처
-```mermaid
-graph LR
-  SB[Sidebar]
-  SB --> M1[세그먼트별 비교분석]
-  SB --> M2[리스크 분석]
-  SB --> M3[행동마케팅 분석]
-  M1 --> ST1[주요 KPI 분석]
-  M1 --> ST2[세그먼트별 세부특성]
-  M1 --> ST3[트렌드 분석(시계열)]
-  M2 --> RT1[연체/부실]
-  M2 --> RT2[한도/이용률]
-  M2 --> RT3[승인/거절]
-  M2 --> RT4[조기경보(EWS)]
-  M3 --> BT1[캠페인 반응]
-  M3 --> BT2[개인화 오퍼]
-  M3 --> BT3[이탈/리텐션]
-  M3 --> BT4[채널 효율]
-  subgraph 상태관리
-    SS[st.session_state]
-  end
-  SB -. 내비게이션 상태 .-> SS
-  SS -. 현재 서브뷰/필터 유지 .-> ST1
-  SS -. .-> ST2
-  SS -. .-> ST3
-  SS -. .-> RT1
-  SS -. .-> RT2
-  SS -. .-> RT3
-  SS -. .-> RT4
-  SS -. .-> BT1
-  SS -. .-> BT2
-  SS -. .-> BT3
-  SS -. .-> BT4
-```
+
+<img width="1347" height="1038" alt="image" src="https://github.com/user-attachments/assets/4dfaa097-fdf1-414e-9afb-94742660b9ac" />
 
 ---
 
